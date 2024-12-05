@@ -1,0 +1,5 @@
+truck_env/
+.env
+.DS_STORE
+media
+django_static

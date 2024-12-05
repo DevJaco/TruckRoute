@@ -1,0 +1,43 @@
+version: "3.3"
+
+services:
+  django:
+    container_name: truckrouting-django
+    build: ./truck_routing
+    command: python3 manage.py runserver 0.0.0.0:8000
+    ports:
+      - 8000:8000
+    env_file:
+      - ./.env
+    networks:
+      - backend
+    volumes:
+      - ./truck_routing:/usr/src/
+      - static_volume:/usr/src/django_static
+      - media_volume:/usr/src/media
+
+  db:
+    container_name: truckrouting-db
+    image: postgis/postgis
+    ports:
+      - 5434:5432
+    networks:
+      - backend
+    env_file:
+      - ./.env
+    environment:
+      POSTGRES_USER: $SQL_USER
+      POSTGRES_PASSWORD: $SQL_PASSWORD
+    volumes:
+      - postgres_data:/var/lib/postgresql/data/
+
+
+networks:
+  backend:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  static_volume:
+  media_volume:
+  elastic_data:
