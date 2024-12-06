@@ -2,7 +2,7 @@ from django.shortcuts import render
 from rest_framework import viewsets
 from django.core.serializers import serialize
 
-from .models import Route, FeatureCollection
+from .models import Route, FeatureCollection, City, TruckStop
 from .serializers import RouteSerializer, FeatureCollectionSerializer
 
 from rest_framework.response import Response
@@ -10,7 +10,10 @@ import json
 
 from rest_framework.decorators import action
 import math
-from django.contrib.gis.geos import Point, LineString
+from django.contrib.gis.geos import Point
+
+from django.contrib.gis.db.models.functions import Distance
+
 
 
 class RouteViewSet(viewsets.ModelViewSet):
@@ -65,15 +68,11 @@ def calculate_fuel_stops(route_segments):
     MAX_RANGE = 500  # Maximum range in miles
     FUEL_EFFICIENCY = 10  # Miles per gallon
     REFUEL_BUFFER = 50 # Miles to look for station before empty
-    FUEL_PRICE_PER_GALLON = 3.5  # Fuel price in USD per gallon
 
     stops = []  # Distances where refueling is needed
-    total_fuel_cost = 0  # Total fuel cost
     remaining_range = MAX_RANGE  # Remaining range at the start of the trip
     cumulative_distance = 0  # Total distance traveled so far
 
-
-    # (step.distance / 1000) * 0.62137119
     for segment in route_segments:
         
         segment_distance = ((segment.distance / 1000) * 0.62137119)
@@ -82,17 +81,14 @@ def calculate_fuel_stops(route_segments):
         
 
         # Process this segment
-        while segment_distance > remaining_range:
-            # Stop when range is depleted
-            # This will always be a multiple of 500 minus the refuel buffer.
-            # stops.append(math.ceil(refill_distance))
+        while segment_distance > remaining_range - REFUEL_BUFFER:
 
-            total_fuel_cost += (remaining_range / FUEL_EFFICIENCY) * FUEL_PRICE_PER_GALLON
+            # total_fuel_cost += (remaining_range / FUEL_EFFICIENCY) * FUEL_PRICE_PER_GALLON
 
             segment_distance -= remaining_range
 
             # Finding the percetage along the segment we need to refuel at.
-            percentage_segment = (current_segment_distance - segment_distance - REFUEL_BUFFER) / current_segment_distance
+            percentage_segment = (current_segment_distance - segment_distance) / current_segment_distance
             
             if segment.type != 10:
                 interpolated_point = interpolate_geo_point(segment.way_points.first().coordinate, segment.way_points.last().coordinate, percentage_segment)
@@ -104,10 +100,10 @@ def calculate_fuel_stops(route_segments):
         remaining_range -= segment_distance
 
     # Final fuel cost for any leftover range
-    if remaining_range < MAX_RANGE:
-        total_fuel_cost += ((MAX_RANGE - remaining_range) / FUEL_EFFICIENCY) * FUEL_PRICE_PER_GALLON
+    # if remaining_range < MAX_RANGE:
+    #     total_fuel_cost += ((MAX_RANGE - remaining_range) / FUEL_EFFICIENCY) * FUEL_PRICE_PER_GALLON
 
-    return stops, total_fuel_cost
+    return stops
 
 
 
@@ -122,15 +118,54 @@ def snap_to_linestring_geodjango(intermediate_point, linestring):
     Returns:
         snapped_point (Point): the snapped point.
     """
-    # Convert the intermediate point and LineString coordinates to GeoDjango objects
-
-    # Find the nearest point on the LineString to the given point
     snapped_point = linestring.interpolate(
         linestring.project(intermediate_point)
     )
 
-    # Return the snapped point as (latitude, longitude)
-    return snapped_point.y, snapped_point.x  # Convert back to lat, lon order
+    return snapped_point
+
+def find_nearest_truck_stops(stop_point):
+    # Search for the closest city
+    closest_city = (
+        City.objects.annotate(distance=Distance('location', stop_point))
+        .order_by('distance') 
+        .first()
+    )
+
+    if closest_city:
+        # Search for truck stops in the closest city
+        truck_stops = TruckStop.objects.filter(city=closest_city)
+        print(truck_stops)
+        if truck_stops.exists():
+            print(f"Closest city to {stop_point} is {closest_city.name} with a distance of {closest_city.distance.mi:.2f} miles.")
+            return truck_stops
+        else:
+            print(f"No truck stops found in {closest_city.name}. Searching nearby cities...")
+
+            # Search for truck stops in nearby cities
+            # You can define a radius to search or use multiple cities.
+            nearby_cities = (
+                City.objects.annotate(distance=Distance('location', stop_point))
+                .filter(distance__gt=closest_city.distance)  # Cities farther than the closest city
+                .order_by('distance')  # Sort by increasing distance
+            )
+
+            # Search truck stops in these nearby cities
+            for city in nearby_cities:
+                truck_stops = TruckStop.objects.filter(city=city)
+                if truck_stops.exists():
+                    print(truck_stops)
+                    print(f"Truck stops found in {city.name} at a distance of {city.distance.mi:.2f} miles.")
+                    return truck_stops
+                else:
+                    print(f"No truck stops found in {city.name}.")
+
+            # If no truck stops are found in any nearby cities
+            print("No truck stops found in the closest or nearby cities.")
+            return None
+    else:
+        print("No city found for the given coordinates.")
+        return None
 
 # Example usage
 
@@ -147,13 +182,15 @@ class FeatureCollectionViewSet(viewsets.ModelViewSet):
 
             for segment in segments:
                 steps = [step for step in segment.step_set.all()]
-                fuel_stops, total_cost = calculate_fuel_stops(steps)
+                fuel_stops, _ = calculate_fuel_stops(steps)
 
                 for stop in fuel_stops:
-                    print(snap_to_linestring_geodjango(stop, feature.geometry))
+                    stop_point = snap_to_linestring_geodjango(stop, feature.geometry)
+                
+                    find_nearest_truck_stops(stop_point)
 
                 print(f"Fuel stops required at distances: {fuel_stops}")
-                print(f"Total fuel cost: ${total_cost:.2f}")
+                # print(f"Total fuel cost: ${total_cost:.2f}")
 
 
 
