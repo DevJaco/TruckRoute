@@ -6,6 +6,9 @@ from .models import Route, FeatureCollection, BoundingBox, Feature, FeatureSumma
 import os
 import requests
 
+import decimal
+
+from .utils import calculate_fuel_stops, find_nearest_truck_stops, interpolate_geo_point, snap_to_linestring_geodjango
 
 class BoundingBoxSerializer(serializers.ModelSerializer):
     class Meta:
@@ -59,16 +62,17 @@ class RouteSerializer(serializers.ModelSerializer):
     class Meta:
         model = Route
         fields = '__all__'
-        read_only_fields = ['feature_collection']
+        read_only_fields = ['feature_collection', 'total_fuel_spend', 'fuel_stops']
 
     def create(self, validated_data):
+
+        route_steps = []
+
         api_key = os.environ.get('OPENROUTE_API_KEY')
         route_response = requests.get(f"https://api.openrouteservice.org/v2/directions/driving-car?api_key={api_key}&start={validated_data['start_location']}&end={validated_data['end_location']}")
 
         geojson = route_response.json()
-
-        print(validated_data['start_location'])
-
+        
         bbox = geojson['bbox']
         metadata = geojson['metadata']
         summary = geojson['features'][0]['properties']['summary']
@@ -119,14 +123,32 @@ class RouteSerializer(serializers.ModelSerializer):
                 step_obj.save()
                 step_obj.way_points.set([points[x] for x in step['way_points']])
 
+                route_steps.append(step_obj)
+
         start_lon, start_lat = validated_data['start_location'].split(',')
         end_lon, end_lat = validated_data['end_location'].split(',')
 
         start_point = Point(float(start_lon), float(start_lat))
         end_point = Point(float(end_lon), float(end_lat))
+        
+        FUEL_EFFICIENCY = os.environ.get("FUEL_EFFICIENCY", 10)  # Miles per gallon
+        total_fuel_cost = decimal.Decimal(0.0)
+        truck_stops = []
+    
+        fuel_stops = calculate_fuel_stops(route_steps)
+
+        for stop in fuel_stops:
+            stop_point = snap_to_linestring_geodjango(stop['point'], feature.geometry)
+            
+            truck_stop = find_nearest_truck_stops(stop_point)
+            truck_stops.append(truck_stop)
+            total_fuel_cost += decimal.Decimal(stop['distance'] / FUEL_EFFICIENCY) * truck_stop.fuel_retail_price
 
         route = Route(start_location=start_point, end_location=end_point,
-        feature_collection = feature_collection)
+        feature_collection = feature_collection, total_fuel_spend=total_fuel_cost)
+        route.save()
+        route.fuel_stops.set(truck_stops)
+        
         return route
 
 

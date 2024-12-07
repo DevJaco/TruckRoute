@@ -41,7 +41,7 @@ class Feature(models.Model):
     feature_collection = models.ForeignKey(
         FeatureCollection, on_delete=models.CASCADE)
     summary = models.OneToOneField(FeatureSummary, on_delete=models.CASCADE)
-    geometry = models.LineStringField()  # Stores the LineString of the route
+    geometry = models.LineStringField() 
     way_points = models.ManyToManyField(WayPoint)
     bbox = models.ForeignKey(BoundingBox, on_delete=models.CASCADE)
 
@@ -80,14 +80,6 @@ class Step(models.Model):
     segment = models.ForeignKey(Segment, on_delete=models.CASCADE)
 
 
-class Route(models.Model):
-    # Using point fields to ensure accuracy of output and ensuring all
-    # start and end locations are accessible unlike using addresses.
-    start_location = models.PointField()
-    end_location = models.PointField()
-    feature_collection = models.ForeignKey(
-        FeatureCollection, on_delete=models.CASCADE)
-
 STATE_CHOICES = (
     (1, 'AL'), (2, 'AK'), (3, 'AZ'), (4, 'AR'), (5, 'CA'),
     (6, 'CO'), (7, 'CT'), (8, 'DE'), (9, 'FL'), (10, 'GA'),
@@ -112,9 +104,13 @@ class City(models.Model):
 
     def __str__(self) -> str:
         return f'{self.name}, {self.state}'
+    
+    class Meta:
+        indexes = [
+            models.Index(fields=['location'], name='location_idx', db_tablespace='pg_default'),
+        ]
 
 class TruckStop(models.Model):
-
     
     opis_id = models.IntegerField()
     name = models.CharField(max_length=1023)
@@ -127,3 +123,13 @@ class TruckStop(models.Model):
     def __str__(self) -> str:
         return f'{self.name}, {self.address}, {self.city}, {self.state}'
     
+
+class Route(models.Model):
+    # Using point fields to ensure accuracy of output and ensuring all
+    # start and end locations are accessible unlike using addresses.
+    start_location = models.PointField()
+    end_location = models.PointField()
+    feature_collection = models.ForeignKey(
+        FeatureCollection, on_delete=models.CASCADE)
+    fuel_stops = models.ManyToManyField(TruckStop)
+    total_fuel_spend = models.DecimalField(max_digits=24, decimal_places=12) 
