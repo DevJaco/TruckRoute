@@ -1,5 +1,5 @@
 # pull official base image
-FROM python:3.9.6-slim-buster
+FROM python:3.12.4-slim
 
 # set work directory
 WORKDIR /usr/src
@@ -15,7 +15,7 @@ RUN pip install --upgrade pip
 RUN apt-get update && apt-get -y install libpq-dev gcc
 
 # install system dependencies
-RUN apt-get update && apt-get install -y netcat
+RUN apt-get update && apt-get install -y netcat-traditional
 
 RUN apt-get -y install gdal-bin libgdal-dev
 RUN apt-get -y install python3-gdal
