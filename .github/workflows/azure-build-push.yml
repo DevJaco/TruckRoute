@@ -1,0 +1,41 @@
+
+name: Deploy Django App to Azure App Service
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      # Step 1: Checkout Code
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      # Step 2: Log in to Azure
+      - name: Log in to Azure
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      # Step 3: Log in to Azure Container Registry
+      - name: Log in to Azure Container Registry
+        run: |
+          az acr login --name ${{ secrets.AZURE_ACR_NAME }}
+
+      # Step 4: Build and Push Docker Images
+      - name: Build and Push Docker Compose Images
+        run: |
+          az acr build --registry ${{ secrets.AZURE_ACR_NAME }} --file docker-compose.yml .
+
+      # Step 5: Update Azure App Service with New Image
+      - name: Update App Service with New Container
+        run: |
+          az webapp config container set \
+            --name ${{ secrets.AZURE_WEBAPP_NAME }} \
+            --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
+            --multicontainer-config-type compose \
+            --multicontainer-config-file docker-compose.yml
