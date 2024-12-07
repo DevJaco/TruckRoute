@@ -121,8 +121,7 @@ class TruckStop(models.Model):
     address = models.CharField(max_length=1023)
     city = models.ForeignKey(City, on_delete=models.CASCADE)
     state = models.SmallIntegerField(choices=STATE_CHOICES)
-    #  use an integer field here as we will price in cents for accuracy.
-    fuel_retail_price = models.IntegerField(help_text="Truck Stop fuel price in cents. (USD)")
+    fuel_retail_price = models.DecimalField(max_digits=24, decimal_places=12) 
     coordinate = models.PointField(blank=True, null=True)
 
     def __str__(self) -> str:
