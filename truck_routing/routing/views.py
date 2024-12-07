@@ -10,18 +10,11 @@ import json
 
 from rest_framework.decorators import action
 import math
+import decimal
+
 from django.contrib.gis.geos import Point
 
 from django.contrib.gis.db.models.functions import Distance
-
-
-
-class RouteViewSet(viewsets.ModelViewSet):
-    queryset = Route.objects.all()
-    serializer_class = RouteSerializer
-    
-
-import math
 
 # https://www.movable-type.co.uk/scripts/latlong.html
 
@@ -66,7 +59,6 @@ def interpolate_geo_point(start_point, end_point, fraction):
 def calculate_fuel_stops(route_segments):
 
     MAX_RANGE = 500  # Maximum range in miles
-    FUEL_EFFICIENCY = 10  # Miles per gallon
     REFUEL_BUFFER = 50 # Miles to look for station before empty
 
     stops = []  # Distances where refueling is needed
@@ -79,12 +71,8 @@ def calculate_fuel_stops(route_segments):
         current_segment_distance = segment_distance
         cumulative_distance += segment_distance
         
-
         # Process this segment
         while segment_distance > remaining_range - REFUEL_BUFFER:
-
-            # total_fuel_cost += (remaining_range / FUEL_EFFICIENCY) * FUEL_PRICE_PER_GALLON
-
             segment_distance -= remaining_range
 
             # Finding the percetage along the segment we need to refuel at.
@@ -92,16 +80,25 @@ def calculate_fuel_stops(route_segments):
             
             if segment.type != 10:
                 interpolated_point = interpolate_geo_point(segment.way_points.first().coordinate, segment.way_points.last().coordinate, percentage_segment)
-                stops.append(interpolated_point)
+                stop = {
+                    'point': interpolated_point,
+                    'distance': remaining_range
+                }
+                stops.append(stop)
 
             remaining_range = MAX_RANGE  # Reset range after refueling
 
         # After processing the segment, update remaining range
         remaining_range -= segment_distance
 
-    # Final fuel cost for any leftover range
-    # if remaining_range < MAX_RANGE:
-    #     total_fuel_cost += ((MAX_RANGE - remaining_range) / FUEL_EFFICIENCY) * FUEL_PRICE_PER_GALLON
+    # Final stop for leftover range
+    if remaining_range < MAX_RANGE:
+        final_point = route_segments[-1].way_points.first().coordinate
+        stop = {
+            'point': final_point,
+            # Refill to the top at the end
+            'distance': MAX_RANGE - remaining_range
+        }
 
     return stops
 
@@ -125,6 +122,7 @@ def snap_to_linestring_geodjango(intermediate_point, linestring):
     return snapped_point
 
 def find_nearest_truck_stops(stop_point):
+
     # Search for the closest city
     closest_city = (
         City.objects.annotate(distance=Distance('location', stop_point))
@@ -137,8 +135,10 @@ def find_nearest_truck_stops(stop_point):
         truck_stops = TruckStop.objects.filter(city=closest_city)
         print(truck_stops)
         if truck_stops.exists():
+            optimize_truck_stop = truck_stops.order_by('fuel_retail_price').first()
+
             print(f"Closest city to {stop_point} is {closest_city.name} with a distance of {closest_city.distance.mi:.2f} miles.")
-            return truck_stops
+            return optimize_truck_stop
         else:
             print(f"No truck stops found in {closest_city.name}. Searching nearby cities...")
 
@@ -147,16 +147,20 @@ def find_nearest_truck_stops(stop_point):
             nearby_cities = (
                 City.objects.annotate(distance=Distance('location', stop_point))
                 .filter(distance__gt=closest_city.distance)  # Cities farther than the closest city
-                .order_by('distance')  # Sort by increasing distance
+                .order_by('distance')
             )
 
             # Search truck stops in these nearby cities
             for city in nearby_cities:
                 truck_stops = TruckStop.objects.filter(city=city)
                 if truck_stops.exists():
+                    optimize_truck_stop = truck_stops.order_by('fuel_retail_price').first()
+                    
                     print(truck_stops)
                     print(f"Truck stops found in {city.name} at a distance of {city.distance.mi:.2f} miles.")
-                    return truck_stops
+
+                    print(f'The cheapest truck stop is: {optimize_truck_stop}')
+                    return optimize_truck_stop
                 else:
                     print(f"No truck stops found in {city.name}.")
 
@@ -177,22 +181,24 @@ class FeatureCollectionViewSet(viewsets.ModelViewSet):
         collection = self.get_object()
         features = collection.feature_set.prefetch_related('segment_set').all()
         
+        FUEL_EFFICIENCY = 10  # Miles per gallon
+        total_fuel_cost = decimal.Decimal(0.0)
+
         for feature in features:
             segments = feature.segment_set.prefetch_related('step_set').all()
-
+            
             for segment in segments:
                 steps = [step for step in segment.step_set.all()]
-                fuel_stops, _ = calculate_fuel_stops(steps)
-
+                fuel_stops = calculate_fuel_stops(steps)
+            
                 for stop in fuel_stops:
-                    stop_point = snap_to_linestring_geodjango(stop, feature.geometry)
-                
-                    find_nearest_truck_stops(stop_point)
-
-                print(f"Fuel stops required at distances: {fuel_stops}")
-                # print(f"Total fuel cost: ${total_cost:.2f}")
-
-
+                    print(stop['point'])
+                    stop_point = snap_to_linestring_geodjango(stop['point'], feature.geometry)
+                   
+                    truck_stop = find_nearest_truck_stops(stop_point)
+                    total_fuel_cost += decimal.Decimal(stop['distance'] / FUEL_EFFICIENCY) * truck_stop.fuel_retail_price
+        
+        print(f'${total_fuel_cost}')
 
         geojson_features = serialize(
             'geojson', features,
@@ -203,3 +209,7 @@ class FeatureCollectionViewSet(viewsets.ModelViewSet):
 
         return Response(geojson_data)
 
+class RouteViewSet(viewsets.ModelViewSet):
+    queryset = Route.objects.all()
+    serializer_class = RouteSerializer
+    
