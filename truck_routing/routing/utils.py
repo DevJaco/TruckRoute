@@ -42,7 +42,7 @@ def interpolate_geo_point(start_point, end_point, fraction):
     return Point(lon_i_deg, lat_i_deg)
 
 
-def calculate_fuel_stops(route_segments):
+def calculate_fuel_stops(route_steps):
 
     MAX_RANGE = os.environ.get('MAX_RANGE', 500)  # Maximum range in miles
     REFUEL_BUFFER = os.environ.get('REFUEL_BUFFER', 50) # Miles to look for station before empty
@@ -51,7 +51,7 @@ def calculate_fuel_stops(route_segments):
     remaining_range = MAX_RANGE  # Remaining range at the start of the trip
     cumulative_distance = 0  # Total distance traveled so far
 
-    for segment in route_segments:
+    for segment in route_steps:
         
         segment_distance = ((segment.distance / 1000) * 0.62137119)
         current_segment_distance = segment_distance
@@ -77,7 +77,7 @@ def calculate_fuel_stops(route_segments):
 
     # Final stop for leftover range
     if remaining_range < MAX_RANGE:
-        final_point = route_segments[-1].way_points.first().coordinate
+        final_point = route_steps[-1].way_points.first().coordinate
         stop = {
             'point': final_point,
             # Refill to the top at the end
