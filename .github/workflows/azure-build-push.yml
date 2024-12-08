@@ -28,6 +28,9 @@ jobs:
 
       # Step 4: Build and Push Docker Images
       - name: Build and Push Docker Compose Images
+        env: 
+          SQL_USER: ${{ secrets.SQL_USER }}
+          SQL_PASSWORD: ${{ secrets.SQL_PASSWORD }}
         run: |
           docker compose build django
           docker tag devinceacr.azurecr.io/spotter-django:latest ${{ secrets.ACR_NAME }}.azurecr.io/spotter-django:latest
