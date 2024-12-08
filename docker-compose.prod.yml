@@ -2,7 +2,7 @@ version: "3.3"
 
 services:
   django:
-    image: devinceacr.azurecr.io/spotter-django:latest
+    image: spotter-django:latest
     container_name: spotter-django
     build: ./truck_routing
     command: gunicorn truck_routing.wsgi:application --bind 0.0.0.0:8000
