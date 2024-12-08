@@ -2,24 +2,24 @@ version: "3.3"
 
 services:
   django:
-    image: spotter-django:latest
+    image: devineacr.azurecr.io/spotter:django
     container_name: spotter-django
     build: ./truck_routing
     command: gunicorn truck_routing.wsgi:application --bind 0.0.0.0:80
     ports:
       - 80:80
     environment:
-      - DEBUG=$DEBUG
-      - SECRET_KEY=$SECRET_KEY
-      - DJANGO_ALLOWED_HOSTS=$DJANGO_ALLOWED_HOSTS
-      - SQL_ENGINE=$SQL_ENGINE
-      - SQL_DATABASE=$SQL_DATABASE
-      - SQL_USER=$SQL_USER
-      - SQL_PASSWORD=$SQL_PASSWORD
-      - SQL_HOST=$SQL_HOST
-      - SQL_PORT=$SQL_PORT
-      - DATABASE=$DATABASE
-      - OPENROUTE_API_KEY=$OPENROUTE_API_KEY
+      - DEBUG=${DEBUG}
+      - SECRET_KEY=${SECRET_KEY}
+      - DJANGO_ALLOWED_HOSTS=${DJANGO_ALLOWED_HOSTS}
+      - SQL_ENGINE=${SQL_ENGINE}
+      - SQL_DATABASE=${SQL_DATABASE}
+      - SQL_USER=${SQL_USER}
+      - SQL_PASSWORD=${SQL_PASSWORD}
+      - SQL_HOST=${SQL_HOST}
+      - SQL_PORT=${SQL_PORT}
+      - DATABASE=${DATABASE}
+      - OPENROUTE_API_KEY=${OPENROUTE_API_KEY}
     volumes:
       - static_volume:/usr/src/django_static
       - media_volume:/usr/src/media
