@@ -5,36 +5,25 @@ services:
     image: spotter-django:latest
     container_name: spotter-django
     build: ./truck_routing
-    command: gunicorn truck_routing.wsgi:application --bind 0.0.0.0:8000
+    command: gunicorn truck_routing.wsgi:application --bind 0.0.0.0:80
     ports:
-      - 8000:8000
-    networks:
-      - backend
+      - 80:80
+    environment:
+      - DEBUG=$DEBUG
+      - SECRET_KEY=$SECRET_KEY
+      - DJANGO_ALLOWED_HOSTS=$DJANGO_ALLOWED_HOSTS
+      - SQL_ENGINE=$SQL_ENGINE
+      - SQL_DATABASE=$SQL_DATABASE
+      - SQL_USER=$SQL_USER
+      - SQL_PASSWORD=$SQL_PASSWORD
+      - SQL_HOST=$SQL_HOST
+      - SQL_PORT=$SQL_PORT
+      - DATABASE=$DATABASE
+      - OPENROUTE_API_KEY=$OPENROUTE_API_KEY
     volumes:
-      - ./truck_routing:/usr/src/
       - static_volume:/usr/src/django_static
       - media_volume:/usr/src/media
 
-  db:
-    container_name: spotter-db
-    image: postgis/postgis:15-3.5
-    ports:
-      - 5434:5432
-    networks:
-      - backend
-    environment:
-      POSTGRES_USER: $SQL_USER
-      POSTGRES_PASSWORD: $SQL_PASSWORD
-    volumes:
-      - postgres_data:/var/lib/postgresql/data/
-
- 
-networks:
-  backend:
-    driver: bridge
-
 volumes:
-  postgres_data:
   static_volume:
   media_volume:
-  elastic_data:
