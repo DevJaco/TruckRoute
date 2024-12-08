@@ -1,0 +1,40 @@
+version: "3.3"
+
+services:
+  django:
+    image: devinceacr.azurecr.io/spotter-django:latest
+    container_name: spotter-django
+    build: ./truck_routing
+    command: gunicorn truck_routing.wsgi:application --bind 0.0.0.0:8000
+    ports:
+      - 8000:8000
+    networks:
+      - backend
+    volumes:
+      - ./truck_routing:/usr/src/
+      - static_volume:/usr/src/django_static
+      - media_volume:/usr/src/media
+
+  db:
+    container_name: spotter-db
+    image: postgis/postgis:15-3.5
+    ports:
+      - 5434:5432
+    networks:
+      - backend
+    environment:
+      POSTGRES_USER: $SQL_USER
+      POSTGRES_PASSWORD: $SQL_PASSWORD
+    volumes:
+      - postgres_data:/var/lib/postgresql/data/
+
+ 
+networks:
+  backend:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  static_volume:
+  media_volume:
+  elastic_data:
