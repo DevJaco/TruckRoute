@@ -44,8 +44,8 @@ def interpolate_geo_point(start_point, end_point, fraction):
 
 def calculate_fuel_stops(route_steps):
 
-    MAX_RANGE = os.environ.get('MAX_RANGE', 500)  # Maximum range in miles
-    REFUEL_BUFFER = os.environ.get('REFUEL_BUFFER', 50) # Miles to look for station before empty
+    MAX_RANGE =  500  # Maximum range in miles
+    REFUEL_BUFFER = 50 # Miles to look for station before empty
 
     stops = []  # Distances where refueling is needed
     remaining_range = MAX_RANGE  # Remaining range at the start of the trip
