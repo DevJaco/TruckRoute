@@ -29,7 +29,7 @@ jobs:
       # Step 4: Build and Push Docker Images
       - name: Build and Push Docker Compose Images
         run: |
-          docker compose docker-compose.yml build django
+          docker compose build django
           docker tag devinceacr.azurecr.io/spotter-django:latest ${{ secrets.ACR_NAME }}.azurecr.io/spotter-django:latest
           docker push ${{ secrets.ACR_NAME }}.azurecr.io/spotter-django:latest
 
