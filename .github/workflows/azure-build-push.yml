@@ -32,15 +32,15 @@ jobs:
         env: 
           SQL_USER: ${{ secrets.SQL_USER }}
           SQL_PASSWORD: ${{ secrets.SQL_PASSWORD }}      
-          DEBUG: ${{ DEBUG }}
-          SECRET_KEY: ${{ SECRET_KEY }}
-          DJANGO_ALLOWED_HOSTS: ${{ DJANGO_ALLOWED_HOSTS }}
-          SQL_ENGINE: ${{ SQL_ENGINE }}
-          SQL_DATABASE: ${{ SQL_DATABASE }}
-          SQL_HOST: ${{ SQL_HOST }}
-          SQL_PORT: ${{ SQL_PORT }}
-          DATABASE: ${{ DATABASE }}
-          OPENROUTE_API_KEY: ${{ OPENROUTE_API_KEY }}
+          DEBUG: ${{ secrets.DEBUG }}
+          SECRET_KEY: ${{ secrets.SECRET_KEY }}
+          DJANGO_ALLOWED_HOSTS: ${{ secrets.DJANGO_ALLOWED_HOSTS }}
+          SQL_ENGINE: ${{ secrets.SQL_ENGINE }}
+          SQL_DATABASE: ${{ secrets.SQL_DATABASE }}
+          SQL_HOST: ${{ secrets.SQL_HOST }}
+          SQL_PORT: ${{ secrets.SQL_PORT }}
+          DATABASE: ${{ secrets.DATABASE }}
+          OPENROUTE_API_KEY: ${{ secrets.OPENROUTE_API_KEY }}
 
         run: |
           docker compose -f docker-compose.prod.yml build django
