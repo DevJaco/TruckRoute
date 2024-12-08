@@ -34,8 +34,8 @@ jobs:
           SQL_PASSWORD: ${{ secrets.SQL_PASSWORD }}
         run: |
           docker compose -f docker-compose.prod.yml build django
-          docker tag devinceacr.azurecr.io/spotter-django:latest ${{ secrets.ACR_NAME }}.azurecr.io/spotter-django:latest
-          docker push ${{ secrets.ACR_NAME }}.azurecr.io/spotter-django:latest
+          docker tag ${{ secrets.AZURE_ACR_NAME }}.azurecr.io/spotter-django:latest ${{ secrets.AZURE_ACR_NAME }}.azurecr.io/spotter-django:latest
+          docker push ${{ secrets.AZURE_ACR_NAME }}.azurecr.io/spotter-django:latest
       # Step 5: Update Azure App Service with New Image
       - name: Update App Service with New Container
         run: |
