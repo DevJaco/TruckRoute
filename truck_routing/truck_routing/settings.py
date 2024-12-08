@@ -28,7 +28,7 @@ DEBUG = os.environ.get("DEBUG")
 
 ALLOWED_HOSTS = []
 
-AUTH_USER_MODEL = "user.User" 
+AUTH_USER_MODEL = "user.User"
 
 
 # Application definition
@@ -41,8 +41,8 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'django.contrib.gis',
+    'drf_yasg',
     'rest_framework',
-    'rest_framework_swagger',
     'user',
     'routing'
 ]
