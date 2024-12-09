@@ -71,6 +71,9 @@ class RouteSerializer(serializers.ModelSerializer):
         api_key = os.environ.get('OPENROUTE_API_KEY')
         route_response = requests.get(f"https://api.openrouteservice.org/v2/directions/driving-car?api_key={api_key}&start={validated_data['start_location']}&end={validated_data['end_location']}")
 
+        if route_response.status_code != 200:
+            raise serializers.ValidationError("Something went wrong while calling the routing service.")
+
         geojson = route_response.json()
         
         bbox = geojson['bbox']
@@ -131,7 +134,7 @@ class RouteSerializer(serializers.ModelSerializer):
         start_point = Point(float(start_lon), float(start_lat))
         end_point = Point(float(end_lon), float(end_lat))
         
-        FUEL_EFFICIENCY = os.environ.get("FUEL_EFFICIENCY", 10)  # Miles per gallon
+        FUEL_EFFICIENCY = 10 # Miles per gallon
         total_fuel_cost = decimal.Decimal(0.0)
         truck_stops = []
     
